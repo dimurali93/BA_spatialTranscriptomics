@@ -1,0 +1,79 @@
+---
+title: "BA paper"
+author: "Divya Murali"
+date: "2024-11-05"
+output: ''
+---
+
+```{r setup, include=FALSE}
+source("./1.library.R")
+```
+samples :
+Bottom tissue BA-Kasai	1 to 14		    Mild ACR	BA Kasai bfore  progressed to LT  and eventually rejection	
+Top tissue		BA-LT	    15 to 300	    Mild ACR	BA Kasai progressed to LT before Rejection	
+
+```{r}
+BA_1k_taining <- readRDS("./rawdata/seuratObject_BA.Liver.RDS")
+DimPlot(BA_1k_taining, group.by = "RNA_nbclust_53d8bfed.d48c.40ba.baea.288813ee8502_1_clusters")
+
+BA_1k_taining$groups <- ifelse(BA_1k_taining$fov >= 1 & BA_1k_taining$fov <= 14, "BA_Kasai", 
+                                ifelse(BA_1k_taining$fov >= 15 & BA_1k_taining$fov <= 300, "BA_LT", NA))
+
+BA_1k_taining$fovgrp= paste0(BA_1k_taining$fov,"_",BA_1k_taining$groups)
+
+DimPlot(BA_1k_taining, group.by = "RNA_nbclust_53d8bfed.d48c.40ba.baea.288813ee8502_1_clusters", label=TRUE)
+
+FreqBarPlot_grp = dittoBarPlot(BA_1k_taining, var = "RNA_nbclust_53d8bfed.d48c.40ba.baea.288813ee8502_1_clusters", group.by = "groups")
+FreqBarPlot_fovgrp = dittoBarPlot(BA_1k_taining, var = "RNA_nbclust_53d8bfed.d48c.40ba.baea.288813ee8502_1_clusters", group.by = "fovgrp")
+
+Summary_data_fovgrp = FreqBarPlot_fovgrp$data
+Summary_data_grp = FreqBarPlot_grp$data
+
+write.csv(Summary_data_fovgrp,"./csv_files/BA_1k_training_Summary_data_fovgrp.csv")
+write.csv(Summary_data_grp,"./csv_files/BA_1k_training_Summary_data_grp.csv")
+
+```
+
+
+```{r}
+tap<- readRDS("/ix1/rsindhi/shared/cosmx/seurat_object.Rds")
+use_slide_image <- Images(tap)[1]
+ba_imageName = Images(tap)[1]
+ImageDimPlot(tap,
+             fov = use_slide_image,
+             border.color = NA,
+             group.by = "fov",
+             cols = "glasbey")
+
+normal_fov <- c(1,2,3,4,5,8,9,10,11,12,13,16,17,19,20,21,22,23,38,39,40)
+rejector_fov <- c(29,30, 31,32,33,34,35,36,37)
+ba_fov = c(26, 27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50)
+metadata <- tap@meta.data
+metadata$tempgrp = paste0(metadata$Run_Tissue_name,"_",metadata$fov)
+metadata <- metadata %>%
+  mutate(groups = case_when(
+    fov %in% c(normal_fov) & Run_Tissue_name %in% Images(tap)[2] ~ "normal",
+    fov %in% c(rejector_fov) & Run_Tissue_name %in% Images(tap)[2]~ "rejector",
+    fov %in% c(ba_fov) & Run_Tissue_name %in% Images(tap)[1]~ "BA",
+    FALSE ~ "hepatoblastoma"  # for any other values not matched
+  ))
+
+tap@meta.data <- metadata
+remove(metadata)
+tap@meta.data$GrpClus = paste0(tap$groups,"_",tap$nb_clus)
+Idents(tap)="groups"
+ba_tap = subset(tap, idents = "BA")
+
+
+use_slide_image <- Images(ba_tap)[1]
+ImageDimPlot(ba_tap,
+             fov = use_slide_image,
+             border.color = NA,
+             group.by = "fov",
+             cols = "glasbey")
+
+ImageDimPlot(tap, fov = "lung5.rep1", cells = WhichCells(nano.obj, idents = c("Basal", "Macrophage",
+    "Smooth Muscle", "CD4 T")), cols = c("red", "green", "blue", "orange"), size = 0.6)
+
+
+```
